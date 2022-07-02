@@ -1,0 +1,40 @@
+<#@ template debug="false" hostspecific="true" language="C#" #>
+<#@ assembly name="System.Core" #>
+<#@ assembly name="System.Threading.Tasks.Extensions" #>
+<#@ assembly name="System.Text.Encodings.Web" #>
+<#@ assembly name="System.Text.Json" #>
+<#@ import namespace="System" #>
+<#@ import namespace="System.IO" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Text" #>
+<#@ import namespace="System.Text.Encodings.Web" #>
+<#@ import namespace="System.Text.Json" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ output extension=".cs" #>
+<#
+	var @namespace = "";
+	var @class = "FontSymbol";
+	
+	Dictionary<string, string> symbol = new ();
+
+	var conf = "symbol.json";
+	var confPath = Path.Combine(
+		Path.GetDirectoryName(this.Host.TemplateFile),
+		conf);
+	if(File.Exists(confPath)) {
+		// 同期メソッドはコンパイルが通らないので一旦あきらめる
+		using var stream = new FileStream(confPath, FileMode.Open, FileAccess.Read);
+		var task = JsonSerializer.DeserializeAsync<Dictionary<string, string>>(stream, new JsonSerializerOptions() {
+			Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+		}).AsTask();
+		task.Wait();
+		symbol = task.Result;
+	}
+#>
+<# if(!string.IsNullOrEmpty(@namespace)) { WriteLine($"namespace {@namespace};"); } #>
+
+class <#= @class #> {
+<# foreach(var key in symbol?.Keys) { #>
+	public static string <#= key #> { get; } = "\x<#= symbol[key] #>";
+<# } #>
+}
